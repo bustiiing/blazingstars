@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>foldOriginY</key>
+	<real>0.9</real>
+	<key>foldOriginX</key>
+	<real>0.48</real>
+	<key>foldSizeWidth</key>
+	<real>0.16</real>
+	<key>foldSizeHeight</key>
+	<real>0.09</real>
+</dict>
+</plist>
