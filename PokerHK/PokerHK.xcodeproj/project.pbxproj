@@ -469,7 +469,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/bin/hiutil -Caf  ~/Desktop/PokerHK/English.lproj/BlazingStars\\ Help/BlazingStars\\ Help.helpindex ~/Desktop/PokerHK/English.lproj/BlazingStars\\ Help/";
+			shellScript = "/usr/bin/hiutil -Caf  $SRCROOT/English.lproj/BlazingStars\\ Help/BlazingStars\\ Help.helpindex $SRCROOT/English.lproj/BlazingStars\\ Help/\necho \"Doing the help.\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
