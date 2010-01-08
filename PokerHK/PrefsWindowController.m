@@ -126,13 +126,8 @@
 	[self setPFRAmount:[potBetPrefsView viewWithTag:23]];
 
 	// Trigger the rounding controls.
-	[self turnOnRounding:[potBetPrefsView viewWithTag:ROUNDINGONTAG]];
 	[self setRoundingAmount:[potBetPrefsView viewWithTag:ROUNDINGAMOUNTTAG]];
 	[self setRoundingType:[potBetPrefsView viewWithTag:ROUNDINGTYPETAG]];
-	[self autoBetRounding:[potBetPrefsView viewWithTag:AUTOBETROUNDINGTAG]];
-		
-	[self autoBetAllIn:[potBetPrefsView viewWithTag:AUTOBETALLINTAG]];
-	[self autoPFR:[potBetPrefsView viewWithTag:AUTOPFRTAG]];
 }
 
 -(IBAction)redetectTheme:(id)sender {
@@ -204,11 +199,6 @@
 	[appController setPFRAmount:[sender floatValue]];	
 }
 
--(IBAction)turnOnRounding:(id)sender
-{
-	[appController turnOnRounding:[sender state]];
-}
-
 -(IBAction)setRoundingAmount:(id)sender
 {
 	[roundingStepper setFloatValue:[sender floatValue]];
@@ -224,21 +214,6 @@
 -(IBAction)voiceCommandsChangedState:(id)sender
 {
 	[appController voiceCommandsChangedState];
-}
-
--(IBAction)autoBetRounding:(id)sender
-{
-	[appController autoBetRounding:[sender state]];
-}
-
--(IBAction)autoBetAllIn:(id)sender
-{
-	[appController autoBetAllIn:[sender state]];
-}
-
--(IBAction)autoPFR:(id)sender
-{
-	[appController autoPFR:[sender state]];
 }
 
 /* 

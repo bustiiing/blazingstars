@@ -19,6 +19,7 @@
 //	AXUIElementRef appRef;
 	IBOutlet HKDispatchController *dc;
 	IBOutlet HKWindowManager *windowManager;
+	IBOutlet HKLowLevel *lowLevel;
 	NSString *currencyName;
 }
 

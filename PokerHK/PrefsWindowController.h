@@ -99,13 +99,9 @@
 
 -(IBAction)setPotBetAmount:(id)sender;
 -(IBAction)setPFRAmount:(id)sender;
--(IBAction)turnOnRounding:(id)sender;
 -(IBAction)voiceCommandsChangedState:(id)sender;
 -(IBAction)setRoundingAmount:(id)sender;
 -(IBAction)setRoundingType:(id)sender;
--(IBAction)autoBetRounding:(id)sender;
--(IBAction)autoBetAllIn:(id)sender;
--(IBAction)autoPFR:(id)sender;
--(IBAction)setWindowFrameColor:(id)sender;
 -(void)detectTheme;
+-(IBAction)redetectTheme:(id)sender;
 @end

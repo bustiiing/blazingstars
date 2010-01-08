@@ -107,28 +107,11 @@ HKWindowManager *wm = NULL;
 		.y = (windowRect.origin.y + (windowRect.size.height / 2))
 	};
 
-	if ([[[NSUserDefaults standardUserDefaults] objectForKey:@"debugWindowOverlayKey"] boolValue]) {
-		[logger debug:@"Reached this part."];
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"debugOverlayWindowKey"]) 
 		[self debugWindow:windowRect];
-	}
-		
-		
 
 	NSLog(@"\nAttempting mouse click at: x=%g y=%g.",eventCenter.x,eventCenter.y);
-	
-	CGAssociateMouseAndMouseCursorPosition(false);
-	
-	CGEventRef mouseEvent = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, eventCenter, kCGMouseButtonLeft);
-	
-	// Cancel any of the modifier keys - this caused me a day of bug-hunting!
-	CGEventSetFlags(mouseEvent,0);
-	CGEventPost(kCGHIDEventTap,mouseEvent);
-	
-	mouseEvent = CGEventCreateMouseEvent(NULL,kCGEventLeftMouseUp,eventCenter,kCGMouseButtonLeft);
-	CGEventSetFlags(mouseEvent,0);
-	CGEventPost(kCGHIDEventTap,mouseEvent);
-	
-	CGAssociateMouseAndMouseCursorPosition(true);	
+	[lowLevel clickAt:eventCenter];
 }
 
 -(NSPoint)getClickPointForXSize:(float)xsize andYSize:(float)ysize andHeight:(float)height andWidth:(float)width
@@ -162,7 +145,7 @@ HKWindowManager *wm = NULL;
 	NSString *title;
 	AXUIElementCopyAttributeValue(windowRef, kAXTitleAttribute, (CFTypeRef *)&title);	
 	if ([title length] > 0) {
-		// Poker tables have two hyphens in their name.  Stupid trick, but it works (suggested by Steve.McLeod).
+		// Poker tables have two hyphens in their name.   Strange trick, but it works (suggested by Steve.McLeod).
 		if ([[title componentsSeparatedByString:@"-"] count] > 2) {
 			if ([title rangeOfString:@"Tournament"].location != NSNotFound) {
 				[logger info:@"Found tournament table."];
