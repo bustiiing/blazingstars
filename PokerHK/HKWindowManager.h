@@ -7,9 +7,11 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import <SOLogger/SOLogger.h>
 #import "HKDefines.h"
 #import "HKDispatchController.h"
 #import "HKThemeController.h"
+#import "HKLowLevel.h"
 
 enum {
 	HKNotTable = 0,
@@ -31,16 +33,17 @@ enum {
 @class HKThemeController;
 
 @interface HKWindowManager : NSObject {
-//	pid_t pokerstarsPID;
 	AXObserverRef observer;
-//	AXUIElementRef appref;
-	
+
 	IBOutlet HKDispatchController *dispatchController;
 	IBOutlet HKThemeController *themeController;
+	IBOutlet HKLowLevel *lowLevel;
 	
 	NSMutableDictionary *windowDict;
 	BOOL activated;
 	NSWindow *frameWindow;
+	
+	SOLogger *logger;
 }
 
 @property BOOL activated;
@@ -49,6 +52,7 @@ enum {
 -(void)drawWindowFrame;
 -(void)clickPointForXSize:(float)xsize andYSize:(float)ysize andHeight:(float)height andWidth:(float)width;
 -(NSPoint)getClickPointForXSize:(float)xsize andYSize:(float)ysize andHeight:(float)height andWidth:(float)width;
+-(void)updateWindowDict;
 -(BOOL)pokerWindowIsActive;
 -(int)windowIsTable:(AXUIElementRef)windowRef;
 -(int)windowIsTableAtOpening:(AXUIElementRef)windowRef;
@@ -65,5 +69,4 @@ enum {
 -(void)windowDidMove;
 -(void)applicationDidActivate;
 -(void)applicationDidDeactivate;
--(void)appTerminated:(NSNotification *)note;
 @end

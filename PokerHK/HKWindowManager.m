@@ -11,10 +11,6 @@
 #import "HKTransparentWindow.h"
 #import "HKDefines.h"
 
-extern NSString *appName;
-extern AXUIElementRef appRef;
-extern pid_t pokerstarsPID;
-
 void axObserverCallback(AXObserverRef observer, 
 						AXUIElementRef elementRef, 
 						CFStringRef notification, 
@@ -29,12 +25,19 @@ HKWindowManager *wm = NULL;
 #pragma mark Initialization
 
 +(void)initialize {
-	NSLog(@"Registering defaults.");
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 	NSMutableDictionary *appDefaults = [NSMutableDictionary dictionary];
 	[appDefaults setObject:[NSNumber numberWithFloat:1.0] forKey:@"tournamentCloseLobbyDelayKey"];
 	[appDefaults setObject:[NSNumber numberWithBool:YES] forKey:@"hsWarningKey"];
     [defaults registerDefaults:appDefaults];
+}
+
+-(id)init {
+	if ((self = [super init])) {		
+		logger = [SOLogger loggerForFacility:@"com.fullyfunctionalsoftware.blazingstars" options:ASL_OPT_STDERR];
+		[logger info:@"Initializing windowManager."];
+	}
+	return self;
 }
 
 -(void)awakeFromNib
@@ -44,33 +47,14 @@ HKWindowManager *wm = NULL;
 	// Set up window dictionary
 	windowDict = [[NSMutableDictionary alloc] init];
 	
-	NSWorkspace * ws = [NSWorkspace sharedWorkspace];
-	
-	NSLog(@"Creating observer for didTerminateApplication notification");
-	NSNotificationCenter *center = [ws notificationCenter];
-	
-	[center addObserver:self
-			   selector:@selector(appTerminated:)
-				   name:NSWorkspaceDidTerminateApplicationNotification
-				 object:nil];
-	
-	NSLog(@"Registering windowobserver for HKWindowManager.");
-	AXError err = AXObserverCreate(pokerstarsPID, axObserverCallback, &observer);
+	AXError err = AXObserverCreate([lowLevel pokerstarsPID], axObserverCallback, &observer);
 	
 	if (err != kAXErrorSuccess) {
-		switch(err) {
-			case kAXErrorIllegalArgument:
-				NSLog(@"Illegal Argument!");
-				break;
-			case kAXErrorFailure:
-				NSLog(@"Failure!");
-				break;
-			default:
-				NSLog(@"Some other error!");
-				break;
-		}
+		[logger critical:@"Creating observer for window notifications in windowManager failed.  Exiting!"];
+		[[NSApplication sharedApplication] terminate: nil];			
 	}
 	
+	AXUIElementRef appRef = [lowLevel appRef];
 	AXObserverAddNotification(observer, appRef, kAXWindowCreatedNotification, (void *)self);
 	AXObserverAddNotification(observer, appRef, kAXWindowResizedNotification, (void *)self);
 	AXObserverAddNotification(observer, appRef, kAXWindowMovedNotification, (void *)self);
@@ -78,32 +62,9 @@ HKWindowManager *wm = NULL;
 	AXObserverAddNotification(observer, appRef, kAXApplicationActivatedNotification, (void *)self);	
 	AXObserverAddNotification(observer, appRef, kAXApplicationDeactivatedNotification, (void *)self);	
 
-
 	CFRunLoopAddSource ([[NSRunLoop currentRunLoop] getCFRunLoop], AXObserverGetRunLoopSource(observer), kCFRunLoopDefaultMode);
 	
-	NSLog(@"Window manager getting window list for windowDict.");
-	NSArray *children;
-	AXUIElementCopyAttributeValues(appRef, kAXChildrenAttribute, 0, 100, (CFArrayRef *)&children);
-	
-	NSString *name; 
-	NSString *role;
-	
-	for (id child in children) {
-		AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXTitleAttribute, (CFTypeRef *)&name);
-		AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXRoleAttribute, (CFTypeRef *)&role);
-		NSLog(@"Role: %@", role);
-		if ([self windowIsTable:(AXUIElementRef) child] == HKHoldemCashTable || [self windowIsTable:(AXUIElementRef)child] == HKTournamentTable) {
-			id *size; CGSize sizeVal;			
-			AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXSizeAttribute,(CFTypeRef *)&size);
-			AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal);
-//			[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:[NSValue valueWithPointer:child]];
-			[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:name];			
-			AXObserverAddNotification(observer, (AXUIElementRef)child, kAXUIElementDestroyedNotification, (void *)self);			
-		}
-	}
-	NSLog(@"windowDict: %@",windowDict);
-
-	
+	[self updateWindowDict];
 }
 
 #pragma mark Window Interaction
@@ -202,23 +163,28 @@ HKWindowManager *wm = NULL;
 	NSString *title;
 	AXUIElementCopyAttributeValue(windowRef, kAXTitleAttribute, (CFTypeRef *)&title);	
 	if ([title length] > 0) {
-		NSLog(@"Title: %@",title);
-		if ([title rangeOfString:@"Tournament"].location != NSNotFound && [title rangeOfString:@"Table"].location != NSNotFound) {
-			return HKTournamentTable;
-		} else if ([title rangeOfString:@"Tournament"].location != NSNotFound && [title rangeOfString:@"Table"].location != NSNotFound) {
-			return HKTournamentLobby;
-		} else if ([title rangeOfString:@"Tournament"].location != NSNotFound) {
-			return HKTournamentPopup;
-		} else if ([title rangeOfString:@"Hold'em"].location != NSNotFound) {
-			return HKHoldemCashTable;
-		} else if ([title rangeOfString:@"Omaha"].location != NSNotFound) {
-			return HKPLOTable;
+		// Poker tables have two hyphens in their name.  Stupid trick, but it works (suggested by Steve.McLeod).
+		if ([[title componentsSeparatedByString:@"-"] count] > 2) {
+			if ([title rangeOfString:@"Tournament"].location != NSNotFound) {
+				[logger info:@"Found tournament table."];
+				return HKTournamentTable;
+			} else if ([title rangeOfString:@"Hold'em"].location != NSNotFound) {
+				[logger info:@"Found hold'em table."];				
+				return HKHoldemCashTable;
+			} else if ([title rangeOfString:@"Omaha"].location != NSNotFound) {
+				[logger info:@"Found omaha table."];				
+				return HKPLOTable;
+			}
 		} else {
-			return HKNotTable;
-		}		
+			if ([title rangeOfString:@"Tournament"].location != NSNotFound && [title rangeOfString:@"Lobby"].location != NSNotFound)
+				return HKTournamentLobby;
+			if ([title rangeOfString:@"Tournament Registration"].location != NSNotFound)
+				return HKTournamentLobby;
+		}
 	} else {
 		return HKNotTable;
-	}	
+	}
+	return HKNotTable;
 }
 
 -(int)windowIsTableAtOpening:(AXUIElementRef)windowRef
@@ -228,7 +194,7 @@ HKWindowManager *wm = NULL;
 	if ([title length] > 0) {
 		NSLog(@"Title: %@",title);
 		if (([title rangeOfString:@"Table"].location != NSNotFound && [title rangeOfString:@"Options"].location == NSNotFound) 
-			|| [title rangeOfString:appName].location != NSNotFound) {
+			|| [title rangeOfString:[lowLevel appName]].location != NSNotFound) {
 			NSArray *children;
 			AXUIElementCopyAttributeValues(windowRef, kAXChildrenAttribute, 0, 100, (CFArrayRef *)&children);
 			BOOL isPopup = NO; NSString *name;
@@ -257,6 +223,28 @@ HKWindowManager *wm = NULL;
 	return HKNotTable;
 }
 
+-(void)updateWindowDict
+{
+	[windowDict removeAllObjects];
+	
+	NSString *name, *role; 
+	
+	for (id child in [lowLevel getChildrenFrom:[lowLevel appRef]]) {
+		AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXTitleAttribute, (CFTypeRef *)&name);
+		AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXRoleAttribute, (CFTypeRef *)&role);
+		[logger info:@"Role: %@", role];
+		if ([self windowIsTable:(AXUIElementRef) child] == HKHoldemCashTable || [self windowIsTable:(AXUIElementRef)child] == HKTournamentTable) {
+			id *size; CGSize sizeVal;			
+			AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXSizeAttribute,(CFTypeRef *)&size);
+			AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal);
+			[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:name];			
+			AXObserverAddNotification(observer, (AXUIElementRef)child, kAXUIElementDestroyedNotification, (void *)self);			
+		}
+	}
+	[logger info:@"windowDict: %@",windowDict];
+	
+}
+
 -(BOOL)pokerWindowIsActive
 {
 	int retVal = [self windowIsTable:[self getMainWindow]];
@@ -270,23 +258,15 @@ HKWindowManager *wm = NULL;
 -(AXUIElementRef)getMainWindow
 {
 	AXUIElementRef mainWindow;
-	NSArray *children;
-	AXError axErr = AXUIElementCopyAttributeValues(appRef, kAXChildrenAttribute,0,100, (CFArrayRef *)&children);
-	if (axErr != kAXErrorSuccess) {
-		NSLog(@"Retrieving children failed. %d", axErr);
-	}
-	
-	NSEnumerator * enumerator = [children objectEnumerator];
-	AXUIElementRef child;
-	while ((child = (AXUIElementRef)[enumerator nextObject])) {
+
+	for (id child in [lowLevel getChildrenFrom:[lowLevel appRef]]) {
 		NSString *value;
-		AXUIElementCopyAttributeValue(child,kAXMainAttribute,(CFTypeRef *)&value);	
-		
+		AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXMainAttribute,(CFTypeRef *)&value);	
 		// Check to see if this is main window we're looking at.  It's here that we'll send the mouse events.
 		if ([value intValue] == 1) {
 			NSString *title;
-			AXUIElementCopyAttributeValue(child,kAXTitleAttribute,(CFTypeRef *)&title);
-			mainWindow = child;
+			AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXTitleAttribute,(CFTypeRef *)&title);
+			mainWindow = (AXUIElementRef)child;
 		}
 	}
 	return mainWindow;
@@ -295,18 +275,10 @@ HKWindowManager *wm = NULL;
 -(NSArray *)getAllPokerTables
 {
 	NSMutableArray *pokerTables = [[NSMutableArray alloc] init];
-	NSArray *children;
-	AXError axErr = AXUIElementCopyAttributeValues(appRef, kAXChildrenAttribute,0,100, (CFArrayRef *)&children);
-	if (axErr != kAXErrorSuccess) {
-		NSLog(@"Retrieving children failed. %d", axErr);
-	}
-	
-	NSEnumerator * enumerator = [children objectEnumerator];
-	AXUIElementRef child;
-	while ((child = (AXUIElementRef)[enumerator nextObject])) {
-		// Check to see if this is a poker table.
-		int tableType = [self windowIsTable:child];
-		if (tableType == HKHoldemCashTable || tableType == HKTournamentTable) {
+
+	for (id child in [lowLevel getChildrenFrom:[lowLevel appRef]]) {
+		int tableType = [self windowIsTable:(AXUIElementRef)child];
+		if (tableType == HKHoldemCashTable || tableType == HKTournamentTable || tableType == HKPLOTable) {
 			[pokerTables addObject:[NSValue valueWithPointer:child]];
 		}
 	}	
@@ -316,33 +288,31 @@ HKWindowManager *wm = NULL;
 -(NSRect)getWindowBounds:(AXUIElementRef)windowRef
 {
 	id *size;
-	AXError axErr = AXUIElementCopyAttributeValue(windowRef,kAXSizeAttribute,(CFTypeRef *)&size);
 	CGSize sizeVal;
 	
-	if (AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal)) {
-		NSLog(@"\nSize: w=%g h=%g",sizeVal.width,sizeVal.height);
+	AXError axErr = AXUIElementCopyAttributeValue(windowRef,kAXSizeAttribute,(CFTypeRef *)&size);
+
+	if (!AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal)) {
+		[logger warning:@"Could not get window size for windowRef: %@",windowRef];
+		return NSMakeRect(0,0,0,0);
 	} 
 	
 	id *position;
 	axErr = AXUIElementCopyAttributeValue(windowRef,kAXPositionAttribute,(CFTypeRef *)&position);
 	if (axErr != kAXErrorSuccess) {
-		NSLog(@"\nCould not retrieve mainWindow position. %d",axErr);
+		[logger warning:@"\nCould not retrieve window position for windowRef: %@. Error code: %d",windowRef,axErr];
+		return NSMakeRect(0,0,0,0);
 	}
 	
 	CGPoint corner;
-	if (AXValueGetValue((AXValueRef)position, kAXValueCGPointType, &corner)) {
-		NSLog(@"\nPosition: x=%g y=%g",corner.x,corner.y);
-	} else {
-		NSLog(@"\nCould not retrieve point!");
+	if (!AXValueGetValue((AXValueRef)position, kAXValueCGPointType, &corner)) {
+		[logger warning:@"Could not get window corner for windowRef: %@",windowRef];
+		return NSMakeRect(0,0,0,0);
 	}
 	
-	// Place a window over the button for visual aid..
-	//	NSWindow *window;
 	NSRect windowRect;
-	
 	windowRect.origin = *(NSPoint *)&corner;
 	windowRect.size = *(NSSize *)&sizeVal;
-	
 	return windowRect;
 }
 
@@ -386,7 +356,6 @@ HKWindowManager *wm = NULL;
 	[money formUnionWithCharacterSet:[NSCharacterSet letterCharacterSet]];
 	[money formUnionWithCharacterSet:[NSCharacterSet whitespaceCharacterSet]];
 	[money formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@"€$-'"]];
-	
 	
 	if ([title rangeOfString:@"Tournament"].location == NSNotFound) {		
 		smallBlind = [[title componentsSeparatedByString:@"/"] objectAtIndex:0];
@@ -482,7 +451,7 @@ HKWindowManager *wm = NULL;
 				NSLog(@"Now I'm trying to find the lobby for this tournament.");
 				// Now need to scan all the windows to find the lobby.  
 				NSArray *children;
-				AXUIElementCopyAttributeValues(appRef, kAXChildrenAttribute,0,100, (CFArrayRef *)&children);
+				AXUIElementCopyAttributeValues([lowLevel appRef], kAXChildrenAttribute,0,100, (CFArrayRef *)&children);
 				
 				NSEnumerator * enumerator = [children objectEnumerator];
 				AXUIElementRef child;  NSString *childTitle;
@@ -582,7 +551,7 @@ HKWindowManager *wm = NULL;
 		NSMutableArray *windowsToClose = [[NSMutableArray alloc] init];
 		
 		// Build list of Table popups.
-		AXUIElementCopyAttributeValues(appRef,kAXChildrenAttribute,0,500,(CFArrayRef *)&children);
+		AXUIElementCopyAttributeValues([lowLevel appRef],kAXChildrenAttribute,0,500,(CFArrayRef *)&children);
 		for (id child in children) {
 			if ([self windowIsTableAtOpening:(AXUIElementRef)	child] == HKTablePopup) {
 				[windowsToClose addObject:child];
@@ -619,7 +588,6 @@ HKWindowManager *wm = NULL;
 	// If we opened a window and it was a poker window, draw the frame if we have to.
 	[self windowFocusDidChange];
 	return;
-
 }
 
 -(void)windowDidResize:(AXUIElementRef)elementRef
@@ -627,57 +595,24 @@ HKWindowManager *wm = NULL;
 	NSString *title;
 	NSString *role;
 	AXUIElementCopyAttributeValue(elementRef,kAXTitleAttribute,(CFTypeRef *)&title);
-	NSLog(@"Title: %@", title);
-	
 	AXUIElementCopyAttributeValue(elementRef,kAXRoleAttribute,(CFTypeRef*)&role);
-	NSLog(@"Role: %@", role);
-	
-	
 	NSSize oldsize;
-//	oldsize = NSSizeFromString([[windowDict objectForKey:[NSValue valueWithPointer:elementRef]] objectAtIndex:0]);
 	oldsize = NSSizeFromString([[windowDict objectForKey:title] objectAtIndex:0]);	
-	NSLog(@"Value: %@",NSStringFromSize(oldsize));
-	
 	
 	id *size; CGSize sizeVal;			
 	AXUIElementCopyAttributeValue(elementRef,kAXSizeAttribute,(CFTypeRef *)&size);
 	AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal);
-//	[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:[NSValue valueWithPointer:elementRef]];
 	[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:title];	
-	NSLog(@"Window resized: %@.",NSStringFromSize(NSSizeFromCGSize(sizeVal)));	
-	NSLog(@"New aspect ratio: %f",sizeVal.width / sizeVal.height);
-	NSLog(@"Old aspect ratio: %f",oldsize.width / oldsize.height);
-	NSLog(@"Aspect ratio diff: %f",((sizeVal.width / sizeVal.height) / (oldsize.width / oldsize.height)));
-	NSLog(@"Window dict: %@",windowDict);
 }
 
 -(void)windowDidClose:(AXUIElementRef)elementRef
 {
-	[windowDict removeAllObjects];
-	NSArray *children;
-	AXUIElementCopyAttributeValues(appRef, kAXChildrenAttribute, 0, 100, (CFArrayRef *)&children);
-	
-	NSString *name; 
-	
-	for (id child in children) {
-		AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXTitleAttribute, (CFTypeRef *)&name);
-		if ([self windowIsTable:(AXUIElementRef) child] == HKHoldemCashTable || [self windowIsTable:(AXUIElementRef)child] == HKTournamentTable) {
-			id *size; CGSize sizeVal;			
-			AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXSizeAttribute,(CFTypeRef *)&size);
-			AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal);
-//			[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:[NSValue valueWithPointer:child]];
-			[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:name];			
-			AXObserverAddNotification(observer, (AXUIElementRef)child, kAXUIElementDestroyedNotification, (void *)self);			
-		}
-	}
-	NSLog(@"windowDict: %@",windowDict);
-	
+	[self updateWindowDict];
 }
 
 -(void)windowFocusDidChange
 {
 	if ([self pokerWindowIsActive] && [self activated] == YES && [[NSUserDefaults standardUserDefaults] boolForKey:@"windowFrameKey"]) {
-		NSLog(@"Window changed to a poker window!");
 		[self drawWindowFrame];
 	} else {
 		[frameWindow close];
@@ -688,16 +623,6 @@ HKWindowManager *wm = NULL;
 {
 	// For now, this is effectively the same as the window focus procedure, so I'll just call that method.
 	[self windowFocusDidChange];
-}
-
--(void)appTerminated:(NSNotification *)note
-{
-    NSLog(@"terminated %@\n", [[note userInfo] objectForKey:@"NSApplicationName"]);
-	if ([[[note userInfo] objectForKey:@"NSApplicationProcessIdentifier"] isEqual:[NSNumber numberWithInt:pokerstarsPID]]) {
-		NSLog(@"PokerStars terminated, quitting!");
-		// I was going to *ask* if they want to quit, but there's no good reason to stay open...is there?
-		[[NSApplication sharedApplication] terminate: nil];
-	}
 }
 
 -(void)applicationDidActivate

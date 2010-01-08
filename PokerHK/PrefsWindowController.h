@@ -90,7 +90,7 @@
 	IBOutlet SRRecorderControl *pfr;
 
 }
-@property AppController * appController;
+@property AppController *appController;
 @property HKThemeController *themeController;
 @property IBOutlet NSMatrix *radiobuttonMatrix;
 @property IBOutlet NSStepper *stepper;
