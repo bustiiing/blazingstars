@@ -133,24 +133,6 @@
 		
 	[self autoBetAllIn:[potBetPrefsView viewWithTag:AUTOBETALLINTAG]];
 	[self autoPFR:[potBetPrefsView viewWithTag:AUTOPFRTAG]];
-
-	
-	// Set the frame colour from the defaults.
-	NSArray *colorValues = [[NSUserDefaults standardUserDefaults] objectForKey: @"windowFrameColourKey"];
-	
-    if(colorValues && ([colorValues count] >= 4)) {
-		
-		NSLog(@"Colour found!");
-        NSColor *color = [NSColor colorWithDeviceRed: [[colorValues objectAtIndex: 0] floatValue]				
-                                     green: [[colorValues objectAtIndex: 1] floatValue]				
-                                      blue: [[colorValues objectAtIndex: 2] floatValue]				
-                                     alpha: [[colorValues objectAtIndex: 3] floatValue]];
-		
-		
-		[windowFrameColourWell setColor:color];
-		
-    }
-	
 }
 
 -(IBAction)redetectTheme:(id)sender {
@@ -242,20 +224,6 @@
 -(IBAction)voiceCommandsChangedState:(id)sender
 {
 	[appController voiceCommandsChangedState];
-}
-
--(IBAction)setWindowFrameColor:(id)sender
-{
-	NSLog(@"Setting colour to defaults!");
-	NSArray *colorValues = [NSArray arrayWithObjects:							
-                            [NSNumber numberWithFloat: [[windowFrameColourWell color] redComponent]],
-                            [NSNumber numberWithFloat: [[windowFrameColourWell color] greenComponent]],
-                            [NSNumber numberWithFloat: [[windowFrameColourWell color] blueComponent]],
-                            [NSNumber numberWithFloat: [[windowFrameColourWell color] alphaComponent]],
-                            nil];
-	
-    [[NSUserDefaults standardUserDefaults] setObject: colorValues
-                                              forKey: @"windowFrameColourKey"];
 }
 
 -(IBAction)autoBetRounding:(id)sender

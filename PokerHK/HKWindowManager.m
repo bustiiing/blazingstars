@@ -44,9 +44,6 @@ HKWindowManager *wm = NULL;
 {
 	wm = self;
 	
-	// Set up window dictionary
-	windowDict = [[NSMutableDictionary alloc] init];
-	
 	AXError err = AXObserverCreate([lowLevel pokerstarsPID], axObserverCallback, &observer);
 	
 	if (err != kAXErrorSuccess) {
@@ -63,7 +60,9 @@ HKWindowManager *wm = NULL;
 	AXObserverAddNotification(observer, appRef, kAXApplicationDeactivatedNotification, (void *)self);	
 
 	CFRunLoopAddSource ([[NSRunLoop currentRunLoop] getCFRunLoop], AXObserverGetRunLoopSource(observer), kCFRunLoopDefaultMode);
-	
+
+	// Set up window dictionary
+	windowDict = [[NSMutableDictionary alloc] init];
 	[self updateWindowDict];
 }
 
@@ -75,10 +74,8 @@ HKWindowManager *wm = NULL;
 	[frameWindow close];
 	AXUIElementRef mw = [self getMainWindow];
 	NSRect frameRect = [NSWindow contentRectForFrameRect:FlippedScreenBounds([self getWindowBounds:mw]) styleMask:NSTitledWindowMask];	
-
 	frameWindow = [[HKTransparentWindow alloc] initWithContentRect:frameRect styleMask:NSBorderlessWindowMask backing:NSBackingStoreNonretained defer:YES];
-	[frameWindow orderFront:nil];
-	
+	[frameWindow orderFront:nil];	
 }
 
 -(void)debugWindow:(NSRect)windowRect
@@ -101,8 +98,7 @@ HKWindowManager *wm = NULL;
 	NSRect windowRect = [self getWindowBounds:mainWindow];
 	
 	windowRect.origin.x = windowRect.size.width * xsize + windowRect.origin.x;
-	windowRect.origin.y = windowRect.size.height * ysize + windowRect.origin.y;
-	
+	windowRect.origin.y = windowRect.size.height * ysize + windowRect.origin.y;	
 	windowRect.size.width = windowRect.size.width * width;
 	windowRect.size.height = windowRect.size.height * height;		
 	
@@ -110,10 +106,13 @@ HKWindowManager *wm = NULL;
 		.x = (windowRect.origin.x + (windowRect.size.width / 2)),
 		.y = (windowRect.origin.y + (windowRect.size.height / 2))
 	};
-	
-#ifdef HKDEBUG
-	[self debugWindow:windowRect];
-#endif
+
+	if ([[[NSUserDefaults standardUserDefaults] objectForKey:@"debugWindowOverlayKey"] boolValue]) {
+		[logger debug:@"Reached this part."];
+		[self debugWindow:windowRect];
+	}
+		
+		
 
 	NSLog(@"\nAttempting mouse click at: x=%g y=%g.",eventCenter.x,eventCenter.y);
 	
@@ -419,10 +418,8 @@ HKWindowManager *wm = NULL;
 	
 	NSUserDefaults *sdc = [NSUserDefaults standardUserDefaults];
 	if ([sdc floatForKey:@"tournamentCloseLobbyDelayKey"]) {
-		NSLog(@"Delay: %f",[sdc floatForKey:@"tournamentCloseLobbyDelayKey"]);
 		[NSThread sleepForTimeInterval:[sdc floatForKey:@"tournamentCloseLobbyDelayKey"]];
 	} else {
-		NSLog(@"Key not registered.");
 		[NSThread sleepForTimeInterval:0.5];
 	}
 	
