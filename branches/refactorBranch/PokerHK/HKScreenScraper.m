@@ -12,15 +12,12 @@
 #import "OpenGLScreenReader.h"
 #import "HKDefines.h"
 
-extern NSString *appName;
-extern AXUIElementRef appRef;
-
 @implementation HKScreenScraper
 @synthesize currencyName;
 
 -(void)awakeFromNib
 {	
-	if ([appName isEqualToString:@"PokerStars"]) {
+	if ([[lowLevel appName] isEqualToString:@"PokerStars"]) {
 		self.currencyName = @"$";
 	} else {
 		self.currencyName = @"€";

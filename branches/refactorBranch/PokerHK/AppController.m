@@ -128,11 +128,6 @@ extern pid_t pokerstarsPID;
 	[dispatchController setPFRAmount:amount];
 }
 
--(void)turnOnRounding:(BOOL)round
-{
-	[dispatchController turnOnRounding:round];
-}
-
 -(void)setRoundingAmount:(float)amount
 {
 	[dispatchController setRoundingAmount:amount];
@@ -141,21 +136,6 @@ extern pid_t pokerstarsPID;
 -(void)setRoundingType:(int)type
 {
 	[dispatchController setRoundingType:type];
-}
-
--(void)autoBetRounding:(BOOL)aBool
-{
-	[dispatchController autoBetRounding:aBool];
-}
-
--(void)autoBetAllIn:(BOOL)aBool
-{
-	[dispatchController autoBetAllIn:aBool];
-}
-
--(void)autoPFR:(BOOL)aBool
-{
-	[dispatchController autoPFR:aBool];
 }
 
 @end

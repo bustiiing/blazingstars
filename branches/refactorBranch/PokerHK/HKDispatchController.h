@@ -42,7 +42,6 @@
 	IBOutlet HKLowLevel *lowLevel;
 	EventHandlerRef hotkeyEventHandlerRef;
 	EventHandlerRef mouseEventHandlerRef;
-	BOOL rounding;
 	float roundingAmount;
 	int roundingType;
 	BOOL autoBetRounding;
@@ -57,12 +56,8 @@
 
 -(void)setPotBetAmount:(float)amount forTag:(int)tag;
 -(void)setPFRAmount:(float)amount;
--(void)turnOnRounding:(BOOL)round;
 -(void)setRoundingAmount:(float)amount;
 -(void)setRoundingType:(int)type;
--(void)autoBetRounding:(BOOL)aBool;
--(void)autoBetAllIn:(BOOL)aBool;
--(void)autoPFR:(BOOL)aBool;
 -(BOOL)keyComboAlreadyRegistered:(KeyCombo)kc; 
 -(void)registerHotKeyForControl:(SRRecorderControl *)control withTag:(int)tag;
 -(void)buttonPress:(NSString *)prefix withButton:(NSString *)size;

@@ -105,6 +105,21 @@
 	return children;
 }
 
+-(void)clickAt:(CGPoint)point
+{
+	CGAssociateMouseAndMouseCursorPosition(false);
+	
+	CGEventRef mouseEvent = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, point, kCGMouseButtonLeft);
+	
+	// Cancel any of the modifier keys - this caused me a day of bug-hunting!
+	CGEventSetFlags(mouseEvent,0);
+	CGEventPost(kCGHIDEventTap,mouseEvent);
+	mouseEvent = CGEventCreateMouseEvent(NULL,kCGEventLeftMouseUp,point,kCGMouseButtonLeft);
+	CGEventSetFlags(mouseEvent,0);
+	CGEventPost(kCGHIDEventTap,mouseEvent);
+
+	CGAssociateMouseAndMouseCursorPosition(true);		
+}
 
 -(void)appTerminated:(NSNotification *)note
 {

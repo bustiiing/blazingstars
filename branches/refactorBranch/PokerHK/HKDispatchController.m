@@ -14,8 +14,6 @@
 #import <AppKit/NSAccessibility.h>
 #import <asl.h>
 
-extern NSString *appName;
-
 EventHotKeyRef	gHotKeyRef;
 EventHotKeyID	gHotKeyID;
 EventHandlerUPP	gAppHotKeyFunction;
@@ -97,7 +95,8 @@ void WindowListApplierFunction(const void *inputDictionary, void *context)
         [outputEntry setObject:[NSNumber numberWithInt:data->order] forKey:kWindowOrderKey];
 		
 		// Look for PokerStars window:
-		if ([applicationName isEqual:appName]) {
+		HKLowLevel *lowLevel = [[HKLowLevel alloc] init];
+		if ([applicationName isEqual:[lowLevel appName]]) {
 			data->order++;
 			
 			[data->outputArray addObject:outputEntry];
@@ -133,8 +132,6 @@ HKWindowManager *wm;
 		speechCommands = [NSDictionary dictionaryWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"speechCommands" ofType:@"plist"]];
 		potBetAmounts = [[NSMutableDictionary alloc] init];
 		amountToChange = 2.0;
-		rounding = NO;
-		autoBetRounding = NO;
 		toggled = YES;
 
 		// Not in key map...need to refactor this.
@@ -203,12 +200,6 @@ HKWindowManager *wm;
 	pfrAmount = amount;
 }
 
--(void)turnOnRounding:(BOOL)round
-{
-	NSLog(@"Setting rounding to: %@\n", (round ? @"YES" : @"NO"));
-	rounding = round;
-}
-
 -(void)setRoundingAmount:(float)amount
 {
 	NSLog(@"Setting rounding amount to: %f\n",amount);
@@ -221,23 +212,6 @@ HKWindowManager *wm;
 	roundingType = type;
 }
 
--(void)autoBetRounding:(BOOL)aBool
-{
-	NSLog(@"Setting autoBetRounding to: %@\n",(aBool ? @"YES" : @"NO"));
-	autoBetRounding = aBool;
-}
-
--(void)autoBetAllIn:(BOOL)aBool
-{
-	NSLog(@"Setting autoBetAllIn to:%@\n",(aBool ? @"YES" : @"NO"));
-	autoBetAllIn = aBool;
-}
-
--(void)autoPFR:(BOOL)aBool
-{
-	NSLog(@"Setting autoPFR to:%@\n",(aBool ? @"YES" : @"NO"));
-	autoPFR = aBool;
-}
 
 #pragma mark Hot Key Registration
 
@@ -639,7 +613,7 @@ HKWindowManager *wm;
 	
 	NSLog(@"New betsize: %f",betSize);
 		
-	if (rounding == YES) {
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"roundingBoolKey"]) {
 		NSLog(@"Rounding!");
 		NSArray *gameParameters = [windowManager getGameParameters];		
 		float blindSize;
@@ -663,7 +637,7 @@ HKWindowManager *wm;
 
 	[self setBetSize:betSize];
 	
-	if (autoBetRounding == YES) {
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"autoBetRoundingKey"]) {
 		NSString *prefix = [[keyMap objectForKey:[NSString stringWithFormat:@"%d",3]] objectAtIndex:0];
 		NSString *size = [[keyMap objectForKey:[NSString stringWithFormat:@"%d",3]] objectAtIndex:1];
 		[self buttonPress:prefix withButton:size];		
@@ -678,7 +652,7 @@ HKWindowManager *wm;
 	NSLog(@"Setting bet size to %f times the big blind of %f, total is %f",pfrAmount,blindSize,pfrAmount*blindSize);
 	[self setBetSize:pfrAmount*blindSize];
 	
-	if (autoPFR == YES) {
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"autoPFRBetKey"] == YES) {
 		NSString *prefix = [[keyMap objectForKey:[NSString stringWithFormat:@"%d",3]] objectAtIndex:0];
 		NSString *size = [[keyMap objectForKey:[NSString stringWithFormat:@"%d",3]] objectAtIndex:1];
 		[self buttonPress:prefix withButton:size];						
@@ -689,7 +663,7 @@ HKWindowManager *wm;
 {
 	[self setBetSize:99999];
 	
-	if (autoBetAllIn == YES) {
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"autoBetAllInKey"] == YES) {
 		NSString *prefix = [[keyMap objectForKey:[NSString stringWithFormat:@"%d",3]] objectAtIndex:0];
 		NSString *size = [[keyMap objectForKey:[NSString stringWithFormat:@"%d",3]] objectAtIndex:1];
 		[self buttonPress:prefix withButton:size];				
