@@ -64,7 +64,6 @@
     [defaults registerDefaults:shortcutDefaults];
 }
 
-
 -(void)awakeFromNib
 {
     [self detectTheme];

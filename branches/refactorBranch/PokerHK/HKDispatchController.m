@@ -174,14 +174,6 @@ HKWindowManager *wm;
 	InstallApplicationEventHandler(&hotKeyHandler,1,&eventType,(void *)self,&hotkeyEventHandlerRef);
 	InstallEventHandler(GetEventMonitorTarget(),&mouseEventHandler,1,&mouseEventType,(void *)self,&mouseEventHandlerRef);
 	
-	NSArray *pids = [[NSWorkspace sharedWorkspace] launchedApplications];
-	
-	for (id app in pids) {
-		if ([[app objectForKey:@"NSApplicationName"] isEqualToString: @"PokerStars"]) {
-			pokerstarsPID =(pid_t) [[app objectForKey:@"NSApplicationProcessIdentifier"] intValue];
-		}
-	}
-	
 	systemWideElement = AXUIElementCreateSystemWide();
 
 	// Get the PrefsWindowController.
@@ -445,7 +437,7 @@ HKWindowManager *wm;
 	NSLog(@"x=%f,y=%f",clickPoint.x,clickPoint.y);
 	AXUIElementRef betBoxRef;
 	
-	AXError err = AXUIElementCopyElementAtPosition(appRef,
+	AXError err = AXUIElementCopyElementAtPosition([lowLevel appRef],
 									 clickPoint.x,
 									 clickPoint.y,
 									 &betBoxRef);
@@ -513,7 +505,7 @@ HKWindowManager *wm;
 	NSLog(@"x=%f,y=%f",clickPoint.x,clickPoint.y);
 	AXUIElementRef betBoxRef;
 	
-	AXUIElementCopyElementAtPosition(appRef,
+	AXUIElementCopyElementAtPosition([lowLevel appRef],
 									 clickPoint.x,
 									 clickPoint.y,
 									 &betBoxRef);

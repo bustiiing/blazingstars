@@ -34,11 +34,12 @@
 	float pfrAmount;
 	AXUIElementRef systemWideElement;
 	AXObserverRef keyObserver;	
-	IBOutlet HKThemeController *themeController;
 	float amountToChange;
 	PrefsWindowController *prefsWindowController;
 	IBOutlet HKScreenScraper *screenScraper;
 	IBOutlet HKWindowManager *windowManager;
+	IBOutlet HKThemeController *themeController;
+	IBOutlet HKLowLevel *lowLevel;
 	EventHandlerRef hotkeyEventHandlerRef;
 	EventHandlerRef mouseEventHandlerRef;
 	BOOL rounding;
