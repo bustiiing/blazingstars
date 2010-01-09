@@ -51,22 +51,29 @@ enum {
 
 -(void)debugWindow:(NSRect)windowRect;
 -(void)drawWindowFrame;
+
 -(void)clickPointForXSize:(float)xsize andYSize:(float)ysize andHeight:(float)height andWidth:(float)width;
 -(NSPoint)getClickPointForXSize:(float)xsize andYSize:(float)ysize andHeight:(float)height andWidth:(float)width;
+
 -(void)updateWindowDict;
+-(void)addWindowToWindowDict:(AXUIElementRef)windowRef;
+
+-(double)findTournamentNum:(NSString *)title inLobby:(BOOL)lobbyBool;
 -(AXUIElementRef)findLobbyForTournament:(double)tnum;
 -(void)closeLobbyForTournament:(AXUIElementRef)elementRef;
 -(void)closeTournamentRegistrationPopup:(AXUIElementRef)popupRef;
 -(void)closeTablePopupWindows;
 -(AXUIElementRef)findOKButtonInPopupWindow:(AXUIElementRef)windowRef;
--(BOOL)pokerWindowIsActive;
+
 -(int)windowIsTable:(AXUIElementRef)windowRef;
 -(int)windowIsTableAtOpening:(AXUIElementRef)windowRef;
+-(BOOL)pokerWindowIsActive;
 -(NSArray *)getAllPokerTables;
--(NSRect)getWindowBounds:(AXUIElementRef)windowRef;
+
 -(NSRect)getPotBounds:(AXUIElementRef)windowRef;
 -(NSArray *)getGameParameters;
--(double)findTournamentNum:(NSString *)title inLobby:(BOOL)lobbyBool;
+
+
 -(void)windowDidOpen:(AXUIElementRef)elementRef;
 -(void)windowDidResize:(AXUIElementRef)elementRef;
 -(void)windowDidClose:(AXUIElementRef)elementRef;
@@ -74,4 +81,5 @@ enum {
 -(void)windowDidMove;
 -(void)applicationDidActivate;
 -(void)applicationDidDeactivate;
+
 @end

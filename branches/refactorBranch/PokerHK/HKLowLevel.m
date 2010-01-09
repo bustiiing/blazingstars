@@ -110,6 +110,38 @@
 	return mainWindow;
 }
 
+-(NSRect)getWindowBounds:(AXUIElementRef)windowRef
+{
+	id *size;
+	CGSize sizeVal;
+	
+	AXUIElementCopyAttributeValue(windowRef,kAXSizeAttribute,(CFTypeRef *)&size);
+	
+	if (!AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal)) {
+		[logger warning:@"Could not get window size for windowRef: %@",windowRef];
+		return NSMakeRect(0,0,0,0);
+	} 
+	
+	id *position;
+	AXError axErr = AXUIElementCopyAttributeValue(windowRef,kAXPositionAttribute,(CFTypeRef *)&position);
+	if (axErr != kAXErrorSuccess) {
+		[logger warning:@"\nCould not retrieve window position for windowRef: %@. Error code: %d",windowRef,axErr];
+		return NSMakeRect(0,0,0,0);
+	}
+	
+	CGPoint corner;
+	if (!AXValueGetValue((AXValueRef)position, kAXValueCGPointType, &corner)) {
+		[logger warning:@"Could not get window corner for windowRef: %@",windowRef];
+		return NSMakeRect(0,0,0,0);
+	}
+	
+	NSRect windowRect;
+	windowRect.origin = *(NSPoint *)&corner;
+	windowRect.size = *(NSSize *)&sizeVal;
+	return windowRect;
+}
+
+
 -(NSArray *)getChildrenFrom:(AXUIElementRef)ref
 {
 	NSArray *children;
