@@ -72,7 +72,7 @@ HKWindowManager *wm = NULL;
 {
 	// Close old window first, or they'll clutter the screen endlessly.
 	[frameWindow close];
-	AXUIElementRef mw = [self getMainWindow];
+	AXUIElementRef mw = [lowLevel getMainWindow];
 	NSRect frameRect = [NSWindow contentRectForFrameRect:FlippedScreenBounds([self getWindowBounds:mw]) styleMask:NSTitledWindowMask];	
 	frameWindow = [[HKTransparentWindow alloc] initWithContentRect:frameRect styleMask:NSBorderlessWindowMask backing:NSBackingStoreNonretained defer:YES];
 	[frameWindow orderFront:nil];	
@@ -94,7 +94,7 @@ HKWindowManager *wm = NULL;
 
 -(void)clickPointForXSize:(float)xsize andYSize:(float)ysize andHeight:(float)height andWidth:(float)width
 {
-	AXUIElementRef mainWindow = [self getMainWindow];
+	AXUIElementRef mainWindow = [lowLevel getMainWindow];
 	NSRect windowRect = [self getWindowBounds:mainWindow];
 	
 	windowRect.origin.x = windowRect.size.width * xsize + windowRect.origin.x;
@@ -117,7 +117,7 @@ HKWindowManager *wm = NULL;
 -(NSPoint)getClickPointForXSize:(float)xsize andYSize:(float)ysize andHeight:(float)height andWidth:(float)width
 {
 	
-	AXUIElementRef mainWindow = [self getMainWindow];
+	AXUIElementRef mainWindow = [lowLevel getMainWindow];
 	
 	NSRect windowRect = [self getWindowBounds:mainWindow];
 	
@@ -171,38 +171,46 @@ HKWindowManager *wm = NULL;
 
 -(int)windowIsTableAtOpening:(AXUIElementRef)windowRef
 {
+	[logger info:@"Attempting to identify window at opening."];
+	
 	NSString *title;
-	AXUIElementCopyAttributeValue(windowRef, kAXTitleAttribute, (CFTypeRef *)&title);	
+	AXError err = AXUIElementCopyAttributeValue(windowRef, kAXTitleAttribute, (CFTypeRef *)&title);	
+	
+	if (err != kAXErrorSuccess) {
+		[logger warning:@"Unable to copy window title attribute.  Bailing out."];
+		return HKErrorGettingAttributeValue;
+	}
+	
 	if ([title length] > 0) {
-		NSLog(@"Title: %@",title);
-		if (([title rangeOfString:@"Table"].location != NSNotFound && [title rangeOfString:@"Options"].location == NSNotFound) 
-			|| [title rangeOfString:[lowLevel appName]].location != NSNotFound) {
-			NSArray *children;
-			AXUIElementCopyAttributeValues(windowRef, kAXChildrenAttribute, 0, 100, (CFArrayRef *)&children);
-			BOOL isPopup = NO; NSString *name;
-			
-			for (id child in children) {
-				AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXRoleAttribute, (CFTypeRef *)&name);
-				if ([name isEqual:@"AXButton"]) {
-					NSString *buttonName;
-					AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXTitleAttribute,(CFTypeRef *)&buttonName);
-					if ([buttonName isEqual:@"OK"] || [buttonName isEqual:@"Check"]) {						
-						isPopup = YES;
-					}
-				}
-			}
-			if (isPopup == YES) {
-				return HKTablePopup;
-			} else {
-				return HKGeneralTable;
-			}	
-		} else if ([title rangeOfString:@"Tournament Registration"].location != NSNotFound) {
+		// Sometimes, the table opens faster and the full title is available at the beginning.  If there's two hyphens,
+		// we know it's a table of some kind.
+		if ([[title componentsSeparatedByString:@"-"] count] > 2) {
+			[logger info:@"Title %@ identified as HKGeneralTable.",title];
+			return HKGeneralTable;
+		}
+		if ([title isEqualToString:@"Table"]){
+			[logger info:@"Title %@ identified as HKGeneralTable.",title];
+			return HKGeneralTable;
+		} else if ([title hasPrefix:@"Tournament #"]) {
+			[logger info:@"Title %@ identified as HKTournamentLobby.",title];
+			return HKTournamentLobby;
+		} else if ([title hasPrefix:@"Tournament"] && [title rangeOfString:@"Lobby"].location != NSNotFound) {
+			[logger info:@"Title %@ identified as HKTournamentLobby.",title];
+			return HKTournamentLobby;				
+		} else if ([title isEqualToString:@"Tournament Registration"]) {
+			[logger info:@"Title %@ identified as HKTournamentRegistration",title];
 			return HKTournamentRegistration;
-		} 
+		} else if ([title rangeOfString:@"Table"].location != NSNotFound && [title length] > 5 ){
+			[logger info:@"Title %@ identified as HKTablePopup",title];
+			return HKTablePopup;
+		} else {
+			[logger info:@"title %@ identified as HKNotTable",title];
+			return HKNotTable;
+		}				
 	} else {
 		return HKNotTable;
-	}	
-	return HKNotTable;
+	}
+	
 }
 
 -(void)updateWindowDict
@@ -227,31 +235,173 @@ HKWindowManager *wm = NULL;
 	
 }
 
+-(void)addWindowToWindowDict:(AXUIElementRef)windowRef
+{
+	NSString *role; NSString *title;
+	AXUIElementCopyAttributeValue(windowRef,kAXRoleAttribute,(CFTypeRef*)&role);
+	AXUIElementCopyAttributeValue(windowRef,kAXTitleAttribute,(CFTypeRef*)&title);		
+	[logger info:@"Role: %@", role];		
+	
+	id *size; CGSize sizeVal;			
+	AXUIElementCopyAttributeValue(windowRef,kAXSizeAttribute,(CFTypeRef *)&size);
+	AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal);
+	[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:title];		
+	AXObserverAddNotification(observer,windowRef, kAXUIElementDestroyedNotification, (void *)self);			
+	[logger info:@"windowDict is now: %@",windowDict];
+	
+}
+
+
+-(void)closeLobbyForTournament:(AXUIElementRef)elementRef
+{
+	NSString *role; NSString *title;
+	
+	AXUIElementCopyAttributeValue(elementRef,kAXRoleAttribute,(CFTypeRef*)&role);
+	AXUIElementCopyAttributeValue(elementRef,kAXTitleAttribute,(CFTypeRef*)&title);		
+	
+	if ([title rangeOfString:@"Tournament"].location != NSNotFound && [title rangeOfString:@"Table"].location != NSNotFound) {	
+		double tnum = [self findTournamentNum:title inLobby:NO];
+		
+		AXUIElementRef lobby = [self findLobbyForTournament:tnum];
+		if (lobby == nil) {
+			[logger warning:@"Could not find lobby, bailing out!"];
+			return;
+		}
+		
+		// Raise the lobby and close it.
+		AXError err = AXUIElementPerformAction(lobby, kAXRaiseAction);
+		if (err != kAXErrorSuccess) {
+			[logger warning:@"Raising the lobby failed! Error: %d",err];
+			return;
+		}
+		// Cycle through the children, find the close button, and close the window.
+		NSString *role,*subrole; AXError roleErr,subroleErr;
+		
+		for (id child in [lowLevel getChildrenFrom:lobby]) {
+			roleErr = AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXRoleAttribute,(CFTypeRef*)&role);
+			if (roleErr == kAXErrorSuccess) {
+				subroleErr = AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXSubroleAttribute,(CFTypeRef*)&subrole);
+				if (subroleErr == kAXErrorSuccess) {
+					if ([role rangeOfString:@"AXButton"].location != NSNotFound && [subrole rangeOfString:@"AXCloseButton"].location != NSNotFound) {
+						AXUIElementPerformAction((AXUIElementRef)child, kAXPressAction);
+						break;
+					}
+				}
+			}
+		}
+		// Finally, clean up the window dict.  
+		[self windowDidClose:lobby];
+	}
+	
+}
+
+-(AXUIElementRef)findLobbyForTournament:(double)tnum
+{	
+	NSString *childTitle;
+	AXUIElementRef lobby = nil;
+	for (id child in [lowLevel getChildrenFrom:[lowLevel appRef]]) {
+		// Check to see if this is the lobby.
+		AXError err = AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXTitleAttribute,(CFTypeRef*)&childTitle);
+		if (err != kAXErrorSuccess) {
+			[logger warning:@"CopyAttributeValue failed!"];
+			return nil;
+		}
+		if ([childTitle rangeOfString:@"Tournament"].location != NSNotFound && [childTitle rangeOfString:@"Lobby"].location != NSNotFound) {
+			if ([self findTournamentNum:childTitle inLobby:YES] == tnum) {
+				lobby = (AXUIElementRef)child;
+			}
+		}						
+	}
+	return lobby;
+}
+
+
+
+-(void)closeTournamentRegistrationPopup:(AXUIElementRef)popupRef
+{			
+	[logger info:@"Table registration popup detected!  Trying to close."];
+	
+	NSString *name;
+	AXUIElementCopyAttributeValue(popupRef, kAXTitleAttribute, (CFTypeRef *)&name);
+	
+	if ([name isEqual:@"Tournament Registration"]) {
+		AXUIElementRef OKButton = NULL;
+		for (id child in [lowLevel getChildrenFrom:popupRef]) {
+			AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXRoleAttribute, (CFTypeRef *)&name);
+			if ([name isEqual:@"AXRadioButton"]) {
+				AXUIElementPerformAction((AXUIElementRef)child,kAXPressAction);
+			} else if ([name isEqual:@"AXCheckBox"] && [[NSUserDefaults standardUserDefaults] boolForKey:@"registerForIdenticalKey"]) {
+				AXUIElementPerformAction((AXUIElementRef)child,kAXPressAction);
+			} else if ([name isEqual:@"AXButton"]) {
+				NSString *buttonName;
+				AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXTitleAttribute,(CFTypeRef *)&buttonName);
+				if ([buttonName isEqual:@"OK"] || [buttonName isEqual:@"Check"]) {
+					OKButton = (AXUIElementRef) child;
+				}
+			}
+			if ([name isEqual:@"(null)"]) {
+				break;
+			}
+		}
+		// Necessary because the window controls don't seem to populate fast enough - the button won't get pressed.
+		[NSThread sleepForTimeInterval:0.3];
+		NSLog(@"Button: %@", OKButton);
+		AXError err = AXUIElementPerformAction(OKButton, kAXPressAction);
+		NSLog(@"Error: %d",err);			
+	}
+}
+
+-(void)closeTablePopupWindows
+{
+	NSMutableArray *windowsToClose = [[NSMutableArray alloc] init];
+	
+	[logger info:@"Table popup detected! Trying to close."];
+	
+	// Build list of Table popups.
+	for (id child in [lowLevel getChildrenFrom:[lowLevel appRef]]) {
+		if ([self windowIsTableAtOpening:(AXUIElementRef)child] == HKTablePopup) {
+			[windowsToClose addObject:child];
+		}
+	}
+	
+	// Go through each table popup, try to press the close button.  This is *extremely* inelegant, but I'm having trouble coming up
+	// with another way to handle this right now.
+	for (id element in windowsToClose) {
+		AXUIElementRef OKButton = [self findOKButtonInPopupWindow:(AXUIElementRef)element];
+		[NSThread sleepForTimeInterval:0.2];
+		AXUIElementPerformAction(OKButton, kAXPressAction);
+	}	
+}
+
+-(AXUIElementRef)findOKButtonInPopupWindow:(AXUIElementRef)windowRef
+{
+	NSString *role;
+	AXUIElementRef OKButton = nil;
+	
+	for (id child in [lowLevel getChildrenFrom:windowRef]) {
+		AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXRoleAttribute, (CFTypeRef *)&role);
+		if ([role isEqual:@"AXButton"]) {
+			NSString *buttonName;
+			AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXTitleAttribute,(CFTypeRef *)&buttonName);
+			if ([buttonName isEqual:@"OK"] || [buttonName isEqual:@"Check"]) {
+				NSLog(@"Saving window.");
+				OKButton = (AXUIElementRef) child;
+			}
+		}
+	}
+	return OKButton;
+}
+
+
+
 -(BOOL)pokerWindowIsActive
 {
-	int retVal = [self windowIsTable:[self getMainWindow]];
+	int retVal = [self windowIsTable:[lowLevel getMainWindow]];
 	if (retVal == HKTournamentTable || retVal == HKHoldemCashTable || retVal == HKPLOTable) {
 		return YES;
 	} else {
 		return NO;
 	}
-}
-
--(AXUIElementRef)getMainWindow
-{
-	AXUIElementRef mainWindow;
-
-	for (id child in [lowLevel getChildrenFrom:[lowLevel appRef]]) {
-		NSString *value;
-		AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXMainAttribute,(CFTypeRef *)&value);	
-		// Check to see if this is main window we're looking at.  It's here that we'll send the mouse events.
-		if ([value intValue] == 1) {
-			NSString *title;
-			AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXTitleAttribute,(CFTypeRef *)&title);
-			mainWindow = (AXUIElementRef)child;
-		}
-	}
-	return mainWindow;
 }
 
 -(NSArray *)getAllPokerTables
@@ -272,15 +422,15 @@ HKWindowManager *wm = NULL;
 	id *size;
 	CGSize sizeVal;
 	
-	AXError axErr = AXUIElementCopyAttributeValue(windowRef,kAXSizeAttribute,(CFTypeRef *)&size);
-
+	AXUIElementCopyAttributeValue(windowRef,kAXSizeAttribute,(CFTypeRef *)&size);
+	
 	if (!AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal)) {
 		[logger warning:@"Could not get window size for windowRef: %@",windowRef];
 		return NSMakeRect(0,0,0,0);
 	} 
 	
 	id *position;
-	axErr = AXUIElementCopyAttributeValue(windowRef,kAXPositionAttribute,(CFTypeRef *)&position);
+	AXError axErr = AXUIElementCopyAttributeValue(windowRef,kAXPositionAttribute,(CFTypeRef *)&position);
 	if (axErr != kAXErrorSuccess) {
 		[logger warning:@"\nCould not retrieve window position for windowRef: %@. Error code: %d",windowRef,axErr];
 		return NSMakeRect(0,0,0,0);
@@ -315,7 +465,6 @@ HKWindowManager *wm = NULL;
 	boundBox.size = [transform transformSize:boundBox.size];
 	boundBox.origin = [transform transformPoint:boundBox.origin];
 
-	
 	NSSize tempSize = windowRect.size;
 	
 	// Have to set the origin by hand.  
@@ -326,11 +475,20 @@ HKWindowManager *wm = NULL;
 
 -(NSArray *)getGameParameters
 {
-	NSLog(@"Trying to get blind size.");
+	[logger info:@"Trying to get game parameters."];
 	
-	AXUIElementRef mainWindow = [self getMainWindow];
+	AXUIElementRef mainWindow = [lowLevel getMainWindow];
+	
+	if (!mainWindow)
+		return nil;
+	
 	NSString *title; 
-	AXUIElementCopyAttributeValue(mainWindow,kAXTitleAttribute,(CFTypeRef *)&title);
+	AXError err = AXUIElementCopyAttributeValue(mainWindow,kAXTitleAttribute,(CFTypeRef *)&title);
+	
+	if (err != kAXErrorSuccess) {
+		[logger warning:@"Unable to copy title attribute value in getGameParameters."];
+		return nil;
+	}
 	
 	NSString *smallBlind, *bigBlind, *gameType;
 	
@@ -343,13 +501,12 @@ HKWindowManager *wm = NULL;
 		smallBlind = [[title componentsSeparatedByString:@"/"] objectAtIndex:0];
 		bigBlind = [[title componentsSeparatedByString:@"/"] objectAtIndex:1];
 		
-		
 		smallBlind = [smallBlind stringByTrimmingCharactersInSet:money];
 		bigBlind = [bigBlind stringByTrimmingCharactersInSet:money];
-		NSLog(@"Small blind: %@  Big blind: %@",smallBlind,bigBlind);	
+		[logger info:@"Small blind: %@  Big blind: %@",smallBlind,bigBlind];	
 		
 		gameType = [[[title componentsSeparatedByString:@"-"] objectAtIndex:2] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-		NSLog(@"Game type: %@", gameType);
+		[logger info:@"Game type: %@", gameType];
 		
 	} else {
 		NSArray *temp = [[[title componentsSeparatedByString:@"/"] objectAtIndex:0] componentsSeparatedByString:@" "];
@@ -359,11 +516,10 @@ HKWindowManager *wm = NULL;
 		
 		smallBlind = [smallBlind stringByTrimmingCharactersInSet:money];
 		bigBlind = [bigBlind stringByTrimmingCharactersInSet:money];
-		NSLog(@"Small blind: %@  Big blind: %@",smallBlind,bigBlind);	
+		[logger info:@"Small blind: %@  Big blind: %@",smallBlind,bigBlind];	
 		
 		gameType = @"Tournament";
-		NSLog(@"Game type: %@", gameType);
-		
+		[logger info:@"Game type: %@", gameType];
 	}
 	
 	return [NSArray arrayWithObjects:[NSNumber numberWithFloat:[smallBlind floatValue]],
@@ -396,9 +552,6 @@ HKWindowManager *wm = NULL;
 
 -(void)windowDidOpen:(AXUIElementRef)elementRef
 {	
-	AXError err;
-	double tnum;
-	
 	NSUserDefaults *sdc = [NSUserDefaults standardUserDefaults];
 	if ([sdc floatForKey:@"tournamentCloseLobbyDelayKey"]) {
 		[NSThread sleepForTimeInterval:[sdc floatForKey:@"tournamentCloseLobbyDelayKey"]];
@@ -407,162 +560,18 @@ HKWindowManager *wm = NULL;
 	}
 	
 	if ([self windowIsTableAtOpening:elementRef] == HKGeneralTable) {
-		NSString *role; NSString *title;
-		AXUIElementCopyAttributeValue(elementRef,kAXRoleAttribute,(CFTypeRef*)&role);
-		AXUIElementCopyAttributeValue(elementRef,kAXTitleAttribute,(CFTypeRef*)&title);		
-		NSLog(@"Role: %@", role);		
-		
-		id *size; CGSize sizeVal;			
-		AXUIElementCopyAttributeValue(elementRef,kAXSizeAttribute,(CFTypeRef *)&size);
-		AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal);
-//		[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:[NSValue valueWithPointer:elementRef]];
-		[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:title];		
-		AXObserverAddNotification(observer,elementRef, kAXUIElementDestroyedNotification, (void *)self);			
-		NSLog(@"windowDict is now: %@",windowDict);
-		
-		// If the window is a tournament window, we need to check if we need to close the lobby.
+		[self addWindowToWindowDict:elementRef];
+
 		if ([sdc boolForKey:@"tournamentCloseLobbyKey"]) {
-			NSLog(@"Closing lobby!");
-			// Check to see if this is a tournament table.
-			if ([title rangeOfString:@"Tournament"].location != NSNotFound && [title rangeOfString:@"Table"].location != NSNotFound) {	
-				NSLog(@"This is a tournament table!");
-				tnum = [self findTournamentNum:title inLobby:NO];
-				NSLog(@"tnum from FindTournament num -> tnum: %.0f",tnum);
-				NSLog(@"Now I'm trying to find the lobby for this tournament.");
-				// Now need to scan all the windows to find the lobby.  
-				NSArray *children;
-				AXUIElementCopyAttributeValues([lowLevel appRef], kAXChildrenAttribute,0,100, (CFArrayRef *)&children);
-				
-				NSEnumerator * enumerator = [children objectEnumerator];
-				AXUIElementRef child;  NSString *childTitle;
-				AXUIElementRef lobby = nil;
-				while ((child = (AXUIElementRef)[enumerator nextObject])) {
-					// Check to see if this is the lobby.
-					err = AXUIElementCopyAttributeValue(child,kAXTitleAttribute,(CFTypeRef*)&childTitle);
-					if (err == kAXErrorSuccess) {
-						if ([childTitle rangeOfString:@"Tournament"].location != NSNotFound && [childTitle rangeOfString:@"Lobby"].location != NSNotFound) {
-							NSLog(@"Found lobby! : %@",childTitle);
-							if ([self findTournamentNum:childTitle inLobby:YES] == tnum) {
-								NSLog(@"Found lobby %.0f for tnum %.0f",[self findTournamentNum:childTitle inLobby:YES],tnum);
-								lobby = child;
-							}
-						}						
-					}
-				}
-				
-				if (lobby == nil) {
-					// Didn't find the lobby - bail out!
-					NSLog(@"Could not find lobby, bailing out!");
-					return;
-				}
-				
-				// Raise the lobby and close it.
-				err = AXUIElementPerformAction(lobby, kAXRaiseAction);
-				if (err != kAXErrorSuccess) {
-					NSLog(@"Raising the lobby failed! Error: %d",err);
-				}
-				// Cycle through the children, find the close button, and close the window.
-				AXUIElementCopyAttributeValues(lobby,kAXChildrenAttribute,0,100, (CFArrayRef *)&children);
-				enumerator = [children objectEnumerator];
-				NSString *role,*subrole; AXError roleErr,subroleErr;
-				while ((child = (AXUIElementRef)[enumerator nextObject])) {
-					roleErr = AXUIElementCopyAttributeValue(child,kAXRoleAttribute,(CFTypeRef*)&role);
-					if (roleErr == kAXErrorSuccess) {
-						subroleErr = AXUIElementCopyAttributeValue(child,kAXSubroleAttribute,(CFTypeRef*)&subrole);
-						if (subroleErr == kAXErrorSuccess) {
-							NSLog(@"Role: %@ subrole: %@",role,subrole);
-							if ([role rangeOfString:@"AXButton"].location != NSNotFound && [subrole rangeOfString:@"AXCloseButton"].location != NSNotFound) {
-								NSLog(@"In the close button!");
-								AXUIElementPerformAction(child, kAXPressAction);
-								break;
-							}
-						}
-					}
-				}
-				
-				// Finally, clean up the window dict.  
-				[self windowDidClose:lobby];
-			}
+			[self closeLobbyForTournament:elementRef];
 		}
 		
 	} else if ([self windowIsTableAtOpening:elementRef] == HKTournamentRegistration) {
-		if ([sdc boolForKey:@"tournamentRegistrationPopupKey"])
-		{
-			NSLog(@"In closeTournamentWindow");
-			NSString *name;
-			AXUIElementCopyAttributeValue(elementRef, kAXTitleAttribute, (CFTypeRef *)&name);
-			NSLog(@"Title: %@",name);
-			
-			if ([name isEqual:@"Tournament Registration"]) {
-				NSArray *children;
-				AXUIElementCopyAttributeValues(elementRef, kAXChildrenAttribute, 0, 100, (CFArrayRef *)&children);
-				AXUIElementRef OKButton = NULL;
-				while (OKButton == NULL) {
-					for (id child in children) {
-						AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXRoleAttribute, (CFTypeRef *)&name);
-						if ([name isEqual:@"AXRadioButton"]) {
-							AXUIElementPerformAction((AXUIElementRef)child,kAXPressAction);
-						} else if ([name isEqual:@"AXCheckBox"] && [sdc boolForKey:@"registerForIdenticalKey"]) {
-							AXUIElementPerformAction((AXUIElementRef)child,kAXPressAction);
-						} else if ([name isEqual:@"AXButton"]) {
-							NSLog(@"In button.");
-							NSString *buttonName;
-							AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXTitleAttribute,(CFTypeRef *)&buttonName);
-							if ([buttonName isEqual:@"OK"] || [buttonName isEqual:@"Check"]) {
-								NSLog(@"Saving button.");
-								OKButton = (AXUIElementRef) child;
-							}
-						}
-						NSLog(@"Child role: %@", name );	
-						if ([name isEqual:@"(null)"]) {
-							break;
-						}
-					}
-				}
-				// Necessary because the window controls don't seem to populate fast enough - the button won't get pressed.
-				[NSThread sleepForTimeInterval:0.3];
-				NSLog(@"Button: %@", OKButton);
-				AXError err = AXUIElementPerformAction(OKButton, kAXPressAction);
-				NSLog(@"Error: %d",err);			
-			}
+		if ([sdc boolForKey:@"tournamentRegistrationPopupKey"]) {
+			[self closeTournamentRegistrationPopup:elementRef];
 		}
 	} else if ([self windowIsTableAtOpening:elementRef] == HKTablePopup) {
-		NSArray *children; NSString *name; 
-		NSMutableArray *windowsToClose = [[NSMutableArray alloc] init];
-		
-		// Build list of Table popups.
-		AXUIElementCopyAttributeValues([lowLevel appRef],kAXChildrenAttribute,0,500,(CFArrayRef *)&children);
-		for (id child in children) {
-			if ([self windowIsTableAtOpening:(AXUIElementRef)	child] == HKTablePopup) {
-				[windowsToClose addObject:child];
-			}
-		}
-
-		// Go through each table popup, try to press the close button.  This is *extremely* inelegant, but I'm having trouble coming up
-		// with another way to handle this right now.
-		NSLog(@"Windows to close: %@",windowsToClose);
-		for (id element in windowsToClose) {
-			AXUIElementCopyAttributeValues((AXUIElementRef) element, kAXChildrenAttribute, 0, 100, (CFArrayRef *)&children);
-			AXUIElementRef OKButton = NULL;
-			while (OKButton == NULL) {
-				for (id child in children) {
-					AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXRoleAttribute, (CFTypeRef *)&name);
-					if ([name isEqual:@"AXButton"]) {
-						NSLog(@"In button.");
-						NSString *buttonName;
-						AXUIElementCopyAttributeValue((AXUIElementRef) child,kAXTitleAttribute,(CFTypeRef *)&buttonName);
-						if ([buttonName isEqual:@"OK"] || [buttonName isEqual:@"Check"]) {
-							NSLog(@"Saving window.");
-							OKButton = (AXUIElementRef) child;
-						}
-					}
-				}
-			}
-			[NSThread sleepForTimeInterval:0.2];
-			NSLog(@"Button: %@", OKButton);
-			AXError err = AXUIElementPerformAction(OKButton, kAXPressAction);
-			NSLog(@"Error: %d",err);			
-		}
+		[self closeTablePopupWindows];
 	}		
 	
 	// If we opened a window and it was a poker window, draw the frame if we have to.
@@ -584,6 +593,7 @@ HKWindowManager *wm = NULL;
 	AXValueGetValue((AXValueRef) size, kAXValueCGSizeType, &sizeVal);
 	[windowDict setObject:[NSArray arrayWithObjects:NSStringFromSize(NSSizeFromCGSize(sizeVal)),nil] forKey:title];	
 }
+
 
 -(void)windowDidClose:(AXUIElementRef)elementRef
 {

@@ -23,6 +23,7 @@ enum {
 	HKTournamentRegistration = 6,
 	HKTablePopup = 7,
 	HKPLOTable = 8,
+	HKErrorGettingAttributeValue = 9,
 };
 
 
@@ -53,10 +54,14 @@ enum {
 -(void)clickPointForXSize:(float)xsize andYSize:(float)ysize andHeight:(float)height andWidth:(float)width;
 -(NSPoint)getClickPointForXSize:(float)xsize andYSize:(float)ysize andHeight:(float)height andWidth:(float)width;
 -(void)updateWindowDict;
+-(AXUIElementRef)findLobbyForTournament:(double)tnum;
+-(void)closeLobbyForTournament:(AXUIElementRef)elementRef;
+-(void)closeTournamentRegistrationPopup:(AXUIElementRef)popupRef;
+-(void)closeTablePopupWindows;
+-(AXUIElementRef)findOKButtonInPopupWindow:(AXUIElementRef)windowRef;
 -(BOOL)pokerWindowIsActive;
 -(int)windowIsTable:(AXUIElementRef)windowRef;
 -(int)windowIsTableAtOpening:(AXUIElementRef)windowRef;
--(AXUIElementRef)getMainWindow;
 -(NSArray *)getAllPokerTables;
 -(NSRect)getWindowBounds:(AXUIElementRef)windowRef;
 -(NSRect)getPotBounds:(AXUIElementRef)windowRef;

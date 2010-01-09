@@ -93,10 +93,27 @@
 	return AXUIElementCreateApplication(pid);	
 }
 
+-(AXUIElementRef)getMainWindow
+{
+	AXUIElementRef mainWindow = nil;
+	
+	for (id child in [self getChildrenFrom:self.appRef]) {
+		NSString *value;
+		AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXMainAttribute,(CFTypeRef *)&value);	
+		// Check to see if this is main window we're looking at.  It's here that we'll send the mouse events.
+		if ([value intValue] == 1) {
+			NSString *title;
+			AXUIElementCopyAttributeValue((AXUIElementRef)child,kAXTitleAttribute,(CFTypeRef *)&title);
+			mainWindow = (AXUIElementRef)child;
+		}
+	}
+	return mainWindow;
+}
+
 -(NSArray *)getChildrenFrom:(AXUIElementRef)ref
 {
 	NSArray *children;
-	AXError err = AXUIElementCopyAttributeValues(appRef, kAXChildrenAttribute, 0, 100, (CFArrayRef *)&children);
+	AXError err = AXUIElementCopyAttributeValues(ref, kAXChildrenAttribute, 0, 100, (CFArrayRef *)&children);
 
 	if (err != kAXErrorSuccess) {
 		[logger warning:@"Retrieving children failed. Error code: %d", err];

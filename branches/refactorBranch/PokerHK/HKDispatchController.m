@@ -694,7 +694,7 @@ HKWindowManager *wm;
 
 	NSLog(@"pruned window list: %@",prunedWindowList);
 	
-	AXUIElementRef window = [windowManager getMainWindow];
+	AXUIElementRef window = [lowLevel getMainWindow];
 	
 	NSString *name;
 	AXUIElementCopyAttributeValue(window,kAXTitleAttribute, (CFTypeRef *)&name);

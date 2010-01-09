@@ -24,6 +24,7 @@
 
 -(BOOL)pokerStarsClientIsActive;
 -(AXUIElementRef)getFrontMostApp;
+-(AXUIElementRef)getMainWindow;
 -(NSArray *)getChildrenFrom:(AXUIElementRef)ref;
 -(void)clickAt:(CGPoint)point;
 
