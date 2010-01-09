@@ -73,7 +73,7 @@
 {
 	NSLog(@"In getPotSize");
 	
-	AXUIElementRef mainWindow = [windowManager getMainWindow];
+	AXUIElementRef mainWindow = [lowLevel getMainWindow];
 	NSRect windowRect = [windowManager getPotBounds:mainWindow];
 	
 	NSLog(@"windowRect sx=%f sy=%f h=%f w=%f",windowRect.origin.x,
