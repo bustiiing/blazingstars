@@ -28,5 +28,9 @@
 -(NSRect)getWindowBounds:(AXUIElementRef)windowRef;
 -(NSArray *)getChildrenFrom:(AXUIElementRef)ref;
 -(void)clickAt:(CGPoint)point;
+-(void)keyPress:(int)keyCode with:(int)flags;
+-(void)keyPress:(int)keyCode;
+-(void)keyPress:(int)keyCode repeated:(int)times withFlush:(BOOL)flush;
+-(void)writeString:(NSString *)valueToSet;
 
 @end
