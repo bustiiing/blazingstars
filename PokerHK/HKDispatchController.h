@@ -7,6 +7,7 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import <SOLogger/SOLogger.h>
 #import "HKThemeController.h"
 #import "ShortcutRecorder.h"
 #import "PrefsWindowController.h"
@@ -27,6 +28,7 @@
 @class HKWindowManager;
 
 @interface HKDispatchController : NSObject {
+	SOLogger *logger;
 	NSMutableDictionary *fieldMap;
 	NSDictionary *keyMap;
 	NSDictionary *speechCommands;
@@ -44,9 +46,6 @@
 	EventHandlerRef mouseEventHandlerRef;
 	float roundingAmount;
 	int roundingType;
-	BOOL autoBetRounding;
-	BOOL autoBetAllIn;
-	BOOL autoPFR;
 	BOOL toggled;
 	NSSpeechRecognizer* speechRecognizer;
 }
@@ -62,6 +61,7 @@
 -(void)registerHotKeyForControl:(SRRecorderControl *)control withTag:(int)tag;
 -(void)buttonPress:(NSString *)prefix withButton:(NSString *)size;
 -(void)buttonPressAllTables:(int)tag;
+-(void)autoBet;
 -(float)getBetSize;
 -(float)betIncrement;
 -(void)setBetSize:(float)amount;

@@ -17,6 +17,9 @@
 
 -(void)awakeFromNib
 {	
+	logger = [SOLogger loggerForFacility:@"com.fullyfunctionalsoftware.blazingstars" options:ASL_OPT_STDERR];
+	[logger info:@"Initializing screenScraper."];
+	
 	if ([[lowLevel appName] isEqualToString:@"PokerStars"]) {
 		self.currencyName = @"$";
 	} else {
@@ -29,7 +32,6 @@
 {
 	NSBundle * thisBundle = [NSBundle bundleForClass:[self class]];
 	NSString * absolutePath = [thisBundle pathForResource:@"tesseract" ofType:@""];
-	//NSLog(@"executable path: %@", absolutePath);
 	
 	NSTask *task;
 	task = [[NSTask alloc] init];
@@ -39,7 +41,6 @@
 	NSMutableDictionary * environ = [NSMutableDictionary dictionaryWithDictionary:[task environment]];
 	[environ setObject:tessdataPath forKey:@"TESSDATA_PREFIX"];
 	
-	//NSLog(@"env: %@", environ);
 	[task setEnvironment:environ];
 	
 	char tempfilename[1024];
@@ -48,7 +49,6 @@
 	NSString *outputFileName = [NSString stringWithCString:tfile encoding:NSUTF8StringEncoding];
 	
 	NSString * inputPath = inFilePath;
-	//NSLog(@"input path: %@, output file name %@", inputPath, outputFileName);
 	
 	NSArray *arguments = [NSArray arrayWithObjects:inputPath, outputFileName, nil];
 	
@@ -63,7 +63,7 @@
 	
 	int retval = unlink([ofile cStringUsingEncoding:NSUTF8StringEncoding]);
 	if(retval)
-		NSLog(@"Failed to unlink: %@", ofile);
+		[logger warning:@"Failed to unlink: %@", ofile];
 	
 	return output;
 }
@@ -71,14 +71,9 @@
 
 -(float)getPotSize
 {
-	NSLog(@"In getPotSize");
-	
 	AXUIElementRef mainWindow = [lowLevel getMainWindow];
 	NSRect windowRect = [windowManager getPotBounds:mainWindow];
 	
-	NSLog(@"windowRect sx=%f sy=%f h=%f w=%f",windowRect.origin.x,
-		  windowRect.origin.y,windowRect.size.height,windowRect.size.width);
-
 #ifdef HKDEBUG
 	[windowManager debugWindow:windowRect];
 #endif
@@ -101,7 +96,6 @@
 	
 	NSBundle * thisBundle = [NSBundle bundleForClass:[self class]];
 	NSString * absolutePath = [thisBundle pathForResource:@"convert" ofType:@""];
-	NSLog(@"executable path: %@", absolutePath);
 	
 	NSTask *task;
 	task = [[NSTask alloc] init];
@@ -112,25 +106,23 @@
 	NSArray *arguments = [NSArray arrayWithObjects:inputPath,@"-resample",@"600x600",@"-depth",@"8",@"-threshold",@"30%",outputfilename, nil];	
 	
 	[task setArguments: arguments];
-	NSLog(@"Arguments: %@",[task arguments]);
-	
 	[task launch];	
 	[task waitUntilExit];
 	
 	NSString *result = [self runTesseract:@"/tmp/processed.tif"];
 	
 	// Need to do some string processing on this thing.
-	NSLog(@"Pot size is: %@",result);
+	[logger info:@"Pot size is: %@",result];
 	float returnVal;
 	
 	result = [result stringByReplacingOccurrencesOfString:@" " withString:@""];
-	NSLog(@"Pot after stripping spaces: %@",result);
+	[logger info:@"Pot after stripping spaces: %@",result];
 
  	NSMutableCharacterSet *excludeSet = [[[NSCharacterSet characterSetWithCharactersInString:@"0123456789,."] invertedSet] mutableCopy];
 	[excludeSet formUnionWithCharacterSet:[NSCharacterSet symbolCharacterSet]];
 	
 	result = [result stringByTrimmingCharactersInSet:excludeSet];
-	NSLog(@"Pot after stripping exclude set: %@",result);
+	[logger info:@"Pot after stripping exclude set: %@",result];
 	
 	// If there's a period in the string, split on it.  If the number of characters after the period
 	// is greater than 2, then it's supposed to be a comma.
@@ -138,12 +130,12 @@
 		// Found a period.  Now split and check substring length after the *first* period. There could
 		// be more than one.
 		if ([[[result componentsSeparatedByString:@"."] objectAtIndex:1] length] > 2) {
-			NSLog(@"Replacing period in %@ with null.",result);
+			[logger info:@"Replacing period in %@ with null.",result];
 			int index = [result rangeOfString:@"."].location;
 			NSString *tempResult = [NSString stringWithString:[result substringToIndex:index]];
 			NSString *tempResult2 = [NSString stringWithString:[result substringFromIndex:index+1]];
 			result = [tempResult stringByAppendingString:tempResult2];
-			NSLog(@"Result is now: %@",result);
+			[logger info:@"Result is now: %@",result];
 		}
 	}
 	
@@ -154,21 +146,21 @@
 	// This should drop everything before the $...
 	if ([result rangeOfString:self.currencyName].location != NSNotFound) {
 		result = [[result componentsSeparatedByString:self.currencyName] objectAtIndex:1];		
-		NSLog(@"Pot after dropping everything before the %@: %@", self.currencyName,result);
+		[logger info:@"Pot after dropping everything before the %@: %@", self.currencyName,result];
 	}
 	
 	NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
 	[formatter setNumberStyle:NSNumberFormatterDecimalStyle];	
 	[formatter setGeneratesDecimalNumbers:YES];
 	NSNumber *pot = [formatter numberFromString:result];
-	NSLog(@"New pot value from formatter is: %g",[pot doubleValue]);
+	[logger info:@"New pot value from formatter is: %g",[pot doubleValue]];
 	returnVal = [pot floatValue];
 	
 	
 	// Use the fact that any decimal followed by more than two digits is a comma.  
 	NSRange position = [result rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"."]];
 	if (position.location != NSNotFound) {
-		NSLog(@"Position of decimal: %d",position.location);
+		[logger info:@"Position of decimal: %d",position.location];
 	}
 
 	return returnVal;

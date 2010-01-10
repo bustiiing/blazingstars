@@ -48,9 +48,7 @@ extern pid_t pokerstarsPID;
     AXUIElementCopyAttributeValue(frontMostApp, kAXTitleAttribute, (CFTypeRef *)&appTitle);
 
 	if ([appTitle isEqual:@"PokerStars"]) {
-		NSLog(@"PokerStars is frontmost!  Activating hotkeys.");
 		if ([windowManager activated] == NO) {
-			NSLog(@"Sending didActivate.");
 			[windowManager applicationDidActivate];
 		}
 	}

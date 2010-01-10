@@ -22,7 +22,6 @@
 
 +(void)initialize {
 	// If this is the first run, set up sensible default hot keys.  
-	NSLog(@"Registering defaults for PrefsWindowController.");
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 	NSMutableDictionary *shortcutDefaults = [NSMutableDictionary dictionary];
 	
@@ -66,6 +65,9 @@
 
 -(void)awakeFromNib
 {
+	logger = [SOLogger loggerForFacility:@"com.fullyfunctionalsoftware.blazingstars" options:ASL_OPT_STDERR];
+	[logger info:@"Initializing prefsWindowController."];
+	
     [self detectTheme];
     
 	// Make the textfield take the initial value.
@@ -107,11 +109,9 @@
 		[sc setAllowsKeyOnly:YES escapeKeysRecord:NO];
 		
 		NSString *dictKey = [[tagDict objectForKey:tag] objectAtIndex:SRKEY];
-		NSLog(@"Attempting to find key: %@",dictKey);
 		if ([[NSUserDefaults standardUserDefaults] objectForKey:dictKey] != nil) {
 			[[[NSUserDefaults standardUserDefaults] objectForKey:dictKey] getBytes:&key length:sizeof(KeyCombo)];
 			[sc setKeyCombo:key];
-			NSLog(@"code: %d flags: %d",key.code,key.flags);
 		} else {
 			KeyCombo k = [sc keyCombo];
 			[[NSUserDefaults standardUserDefaults] setObject:[NSData dataWithBytes:&k length:sizeof(KeyCombo)] forKey:dictKey];
@@ -135,9 +135,8 @@
 }
 
 -(void)detectTheme {
-    NSLog(@"Detecting theme");
     PokerStarsTheme *currentTheme = [PokerStarsInfo determineTheme];
-    NSLog(@"Detected theme %@", currentTheme);
+	[logger info:@"Detected theme %@", currentTheme];
     while (![currentTheme supported]) {
         NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 		[alert addButtonWithTitle:@"Help"];
@@ -154,7 +153,7 @@
             
         } else {
             currentTheme = [PokerStarsInfo determineTheme];
-            NSLog(@"Detected theme %@", currentTheme);
+			[logger info:@"Detected theme %@", currentTheme];
         }
     }
     [themeController setPsTheme:currentTheme];
@@ -163,7 +162,6 @@
      
 -(IBAction)setPotBetAmount:(id)sender
 {
-	NSLog(@"Changing pet bot amount to %f: ",[sender floatValue]);
 	switch ([sender tag]) {
 		case 17:
 			[potStepperOneField setFloatValue:[sender floatValue]];
@@ -186,14 +184,12 @@
 			[appController setPotBetAmount:[sender floatValue] forTag:[sender tag]];
 			break;
 		default:
-			NSLog(@"setPotBetAmount:  why am I here? %d",[sender tag]);
 			break;
 	}
 }
 
 -(IBAction)setPFRAmount:(id)sender
 {
-	NSLog(@"Changing pfr amount to %f: ",[sender floatValue]);
 	[pfrStepperField setFloatValue:[sender floatValue]];
 	[pfrStepper setFloatValue:[sender floatValue]];
 	[appController setPFRAmount:[sender floatValue]];	
@@ -234,7 +230,6 @@
 - (IBAction)showWindow:(id)sender 
 {
 	[super showWindow:sender];
-	NSLog(@"Setting the delegate!");
 	[[self window] setDelegate:self];
 	[[self window] makeKeyAndOrderFront:sender];
 }
@@ -247,7 +242,6 @@
  */
 - (void)shortcutRecorder:(SRRecorderControl *)aRecorder keyComboDidChange:(KeyCombo)newKeyCombo
 {
-	NSLog(@"Hot key captured in SRRC!");
 	NSData *key = [NSData dataWithBytes:&newKeyCombo length:sizeof(KeyCombo)];
 	[[NSUserDefaults standardUserDefaults] setObject:key
 											  forKey: [[tagDict objectForKey:[NSValue valueWithPointer:aRecorder]] objectAtIndex:SRKEY]];

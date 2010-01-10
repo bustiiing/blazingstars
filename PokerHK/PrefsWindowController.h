@@ -7,6 +7,7 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import <SOLogger/SOLogger.h>
 #import "DBPrefsWindowController.h"
 #import "HKThemeController.h"
 #import "AppController.h"
@@ -26,6 +27,8 @@
 @class HKThemeController;
 
 @interface PrefsWindowController : DBPrefsWindowController {
+	SOLogger *logger;
+	
 	// Subviews to load.
 	IBOutlet NSView *basicKeysPrefsView;
 	IBOutlet NSView *potBetPrefsView;

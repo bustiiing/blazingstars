@@ -7,6 +7,8 @@
 //
 
 #import "HKLowLevel.h"
+#import <Carbon/Carbon.h>
+#import <AppKit/NSAccessibility.h>
 
 
 @implementation HKLowLevel
@@ -167,7 +169,67 @@
 	CGEventSetFlags(mouseEvent,0);
 	CGEventPost(kCGHIDEventTap,mouseEvent);
 
-	CGAssociateMouseAndMouseCursorPosition(true);		
+	CGAssociateMouseAndMouseCursorPosition(true);	
+	FlushEventQueue(GetMainEventQueue());
+	FlushEventQueue(GetCurrentEventQueue());
+}
+
+-(void)keyPress:(int)keyCode with:(int)flags
+{
+	CGEventRef keyEventDown = CGEventCreateKeyboardEvent(NULL,keyCode,true);
+	CGEventSetFlags(keyEventDown,flags);
+	CGEventRef keyEventUp = CGEventCreateKeyboardEvent(NULL, keyCode, false);
+	CGEventSetFlags(keyEventUp,flags);
+	
+	CGEventPost(kCGSessionEventTap, keyEventDown);	
+	CGEventPost(kCGSessionEventTap, keyEventUp);
+		
+	FlushEventQueue(GetMainEventQueue());
+	FlushEventQueue(GetCurrentEventQueue());	
+		
+}
+
+-(void)keyPress:(int)keyCode 
+{
+	[self keyPress:keyCode with:0];
+	
+}
+
+-(void)keyPress:(int)keyCode repeated:(int)times withFlush:(BOOL)flush
+{
+	CGEventRef keyEventDown = CGEventCreateKeyboardEvent(NULL,keyCode,true);
+	CGEventSetFlags(keyEventDown,0);
+	CGEventRef keyEventUp = CGEventCreateKeyboardEvent(NULL, 124, false);
+	CGEventSetFlags(keyEventUp,0);
+	
+	for (int j = 0; j < times; j++) {
+		CGEventPost(kCGAnnotatedSessionEventTap, keyEventDown);	
+		CGEventPost(kCGAnnotatedSessionEventTap, keyEventUp);
+		
+		if (flush) {
+			FlushEventQueue(GetMainEventQueue());
+			FlushEventQueue(GetCurrentEventQueue());	
+		}
+	}	
+	
+}
+
+-(void)writeString:(NSString *)valueToSet
+{
+	UniChar buffer;
+	CGEventRef keyEventDown = CGEventCreateKeyboardEvent(NULL, 1, true);
+	CGEventRef keyEventUp = CGEventCreateKeyboardEvent(NULL, 1, false);
+	CGEventSetFlags(keyEventDown,0);		
+	CGEventSetFlags(keyEventUp,0);		
+	for (int i = 0; i < [valueToSet length]; i++) {
+		[valueToSet getCharacters:&buffer range:NSMakeRange(i, 1)];
+		[logger debug:@"Character: %c",buffer];
+		CGEventKeyboardSetUnicodeString(keyEventDown, 1, &buffer);
+		CGEventPost(kCGAnnotatedSessionEventTap, keyEventDown);
+		CGEventKeyboardSetUnicodeString(keyEventUp, 1, &buffer);
+		CGEventPost(kCGAnnotatedSessionEventTap, keyEventUp);
+	}
+	
 }
 
 -(void)appTerminated:(NSNotification *)note

@@ -7,6 +7,7 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import <SOLogger/SOLogger.h>
 #import "HKDefines.h"
 #import "HKDispatchController.h"
 #import "HKWindowManager.h"
@@ -15,8 +16,8 @@
 @class HKWindowManager;
 
 @interface HKScreenScraper : NSObject {
-//	pid_t pokerstarsPID;
-//	AXUIElementRef appRef;
+	SOLogger *logger;
+	
 	IBOutlet HKDispatchController *dc;
 	IBOutlet HKWindowManager *windowManager;
 	IBOutlet HKLowLevel *lowLevel;
