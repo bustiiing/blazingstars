@@ -1,5 +1,5 @@
 #labels Featured
-*Important*:  _Right now, the most recent build is the one on the home page (0.9.8b-20).  The debug page will be updated and this notice removed when I have a fresher debug release.  Thank you!_
+*Important*:  _Right now, the most recent build is the one on the home page (0.9.8b-21).  The debug page will be updated and this notice removed when I have a fresher debug release.  Thank you!_
 
 If you'd like to test the cutting edge features of BlazingStars, you can download a copy of the latest debug build of BlazingStars (or at least, the latest debug build that *I* have) here at http://fullyfunctionalsoftware.com/blazingstars/debug/BlazingStars.zip
 
