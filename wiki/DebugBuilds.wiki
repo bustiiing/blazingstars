@@ -1,5 +1,5 @@
 #labels Featured
-*Important*:  _There is now a fresh debug build up at the link below.  It fixes a couple of issues, and there will be more coming before I release 0.9.8b (22)._
+*Important*:  _The release on the home page (0.9.8b build 22) is the most current download available.  This message will be changed when a new debug build is available._
 
 If you'd like to test the cutting edge features of BlazingStars, you can download a copy of the latest debug build of BlazingStars (or at least, the latest debug build that *I* have) here at http://fullyfunctionalsoftware.com/blazingstars/debug/BlazingStars.zip
 
