@@ -1,5 +1,5 @@
 #labels Featured
-*Important*:  _The release on the home page (0.9.8b build 22) is the most current download available.  This message will be changed when a new debug build is available._
+*Important*:  _A new debug build is available at the link below.  This build addresses an issue with window overlays at small window sizes, and a problem with international number formats in the preferences window._
 
 If you'd like to test the cutting edge features of BlazingStars, you can download a copy of the latest debug build of BlazingStars (or at least, the latest debug build that *I* have) here at http://fullyfunctionalsoftware.com/blazingstars/debug/BlazingStars.zip
 
