@@ -4,7 +4,7 @@ Quick Silver scripts to move poker tables around
 
 Another feature that one typically needs when multitabling  is the possibility to stack all tables in one position (say the upper left corner) and then hit a (combination of) keys when something interesting is happening on one of the tables to move it somewhere away from the other 45 tables you have opened... ;-)
 
-This is something easily done with apple scripts. We need however a way to associate an hot key with an apple script. [http://quicksilver.en.softonic.com/mac QuickSilver] (a "must have" open source application) allows one to do exactly that.  
+This is something easily done with apple scripts. We need however a way to associate an hot key with an apple script. QuickSilver (a "must have" open source application) allows one to do exactly that (http://quicksilver.en.softonic.com/mac)
 
 = Details =
 
