@@ -17,7 +17,7 @@
 	<key>betOriginX</key>
 	<real>0.88</real>
 	<key>betOriginY</key>
-	<real>0.78</real>
+	<real>0.91</real>
 	<key>timeBankOriginX</key>
 	<real>0.46</real>
 	<key>timeBankOriginY</key>
@@ -43,9 +43,9 @@
 	<key>checkCallOriginY</key>
 	<real>0.92</real>
 	<key>checkCallAnyOriginX</key>
-	<real>0.6830000000000001</real>
+	<real>0.745</real>
 	<key>checkCallAnyOriginY</key>
-	<real>0.91</real>
+	<real>0.962</real>
 	<key>sitOutNextHandOriginX</key>
 	<real>0.43</real>
 	<key>sitOutNextHandOriginY</key>
@@ -55,13 +55,13 @@
 	<key>autoPostSitOutOriginY</key>
 	<real>0.97</real>
 	<key>betRaiseOriginX</key>
-	<real>0.842</real>
+	<real>0.876</real>
 	<key>betRaiseOriginY</key>
-	<real>0.87</real>
+	<real>0.92</real>
 	<key>betRaiseAnyOriginX</key>
-	<real>0.842</real>
+	<real>0.876</real>
 	<key>betRaiseAnyOriginY</key>
-	<real>0.91</real>
+	<real>0.962</real>
 	<key>betBoxOriginX</key>
 	<real>0.88</real>
 	<key>betBoxOriginY</key>
