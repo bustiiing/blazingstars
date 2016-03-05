@@ -1,0 +1,5 @@
+**Important**:  _A new debug build is available at the link below.  This build addresses an issue with window overlays at small window sizes, and a problem with international number formats in the preferences window._
+
+If you'd like to test the cutting edge features of BlazingStars, you can download a copy of the latest debug build of BlazingStars (or at least, the latest debug build that **I** have) here at http://fullyfunctionalsoftware.com/blazingstars/debug/BlazingStars.zip
+
+Note:  If you already have BlazingStars installed, I would recommend downloading BlazingStars to a directory other than the Applications directory (or whereever the version you already have is installed).  This will avoid any conflicts with Sparkle auto-updating of the application when I release a new official build.
